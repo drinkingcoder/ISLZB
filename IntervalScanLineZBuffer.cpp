@@ -24,8 +24,8 @@ bool CompareEdge(const Edge & a, const Edge & b) {
     }
 }
 
-bool CompareEdgePair(const EdgePair & a, const EdgePair & b) {
-    return a.left.x < b.left.x;
+bool CompareIntervalActiveEdge(const IntervalActiveEdge & a, const IntervalActiveEdge & b) {
+    return a.x < b.x;
 }
 
 inline EdgePair FindEdgePair(int idx, const std::vector<Edge> &edges) {
@@ -149,7 +149,7 @@ void IntervalScanLineZBuffer::ProjectObject(const Object &object) {
         for (auto vIdxItr = vIdx.begin()+1; vIdxItr != vIdx.end(); vIdxItr++, vPreIdxItr++) {
             v1 = vertices[*vPreIdxItr];
             v2 = vertices[*vIdxItr];
-            cout << "vertex after transform " << v1 << endl;
+            // cout << "vertex after transform " << v1 << endl;
             v2(1) = round(v2(1));
             v1(1) = round(v1(1));
             if (v1(1) > v2(1)) {
@@ -176,7 +176,7 @@ void IntervalScanLineZBuffer::ProjectObject(const Object &object) {
         }
         if (max_y < size.height && min_y > 0) {
             Vector3 v = vertices[face.vIdx[0]];
-            cout << "vertex = " << v << endl;
+            // cout << "vertex = " << v << endl;
             polygon.plane.normal = normal;
             polygon.plane.d = - normal.dot(v);
             polygon.ill = abs(Vector3::UnitZ().dot(polygon.plane.normal));
@@ -198,7 +198,115 @@ void IntervalScanLineZBuffer::ProjectObjects() {
 
 void IntervalScanLineZBuffer::Draw() {
     scene = Mat(size, CV_32F, Scalar::all(0));
+    activePolygonList.clear();
+    activeEdgeList.clear();
 
+    for (auto y = 0; y < size.height; y++) {
+        // cout << "y = " << y << endl;
+        const auto & polys = polygonYList[y];
+        const auto & edges = edgeYList[y];
+
+        // add activated polygons
+        for (auto polItr = polys.begin(); polItr != polys.end(); polItr++) {
+            activePolygonList.push_back(*polItr);
+            auto edgePair = FindEdgePair(polItr->idx, edges);
+            ConstructDepthIncrement(edgePair, polItr->plane, y);
+            activeEdgeList.push_back(edgePair);
+        }
+
+        // contruct interval edge list
+        vector<IntervalActiveEdge> intervalActiveEdgeList;
+        // intervalActiveEdgeList.reserve(activeEdgeList.size()*2);
+        for (auto edgeItr = activeEdgeList.begin(); edgeItr != activeEdgeList.end(); edgeItr++) {
+            IntervalActiveEdge ae;
+            ae.idx = distance(activeEdgeList.begin(), edgeItr);
+            ae.x = edgeItr->left.x;
+            intervalActiveEdgeList.push_back(ae);
+            ae.x = edgeItr->right.x;
+            intervalActiveEdgeList.push_back(ae);
+        }
+        // cout << "sort " << endl;
+        // cout << "active edge list size = " << activeEdgeList.size() << endl;
+        // cout << "interval active edge list size = " << intervalActiveEdgeList.size() << endl;
+        sort(intervalActiveEdgeList.begin(), intervalActiveEdgeList.end(), CompareIntervalActiveEdge);
+
+        // cout << "scan " << endl;
+        // scan this row
+        vector<int> rowList;
+        int idx = 0;
+        for (auto aeItr = intervalActiveEdgeList.begin(); aeItr != intervalActiveEdgeList.end(); aeItr++, idx++) {
+            // cout << "x = " << aeItr->x << endl;
+            if (activePolygonList[aeItr->idx].flag == false) {
+                // insert the polygon
+                // cout << "insert " << aeItr->idx << endl;
+                activePolygonList[aeItr->idx].flag = true;
+                rowList.push_back(aeItr->idx);
+            } else {
+                // erase the polygon
+                // cout << "erase " << aeItr->idx << endl;
+                activePolygonList[aeItr->idx].flag = false;
+                for (auto itr = rowList.begin(); itr != rowList.end(); itr++) {
+                    if (*itr == aeItr->idx) {
+                        rowList.erase(itr);
+                        break;
+                    }
+                }
+            }
+            real_type minz = numeric_limits<real_type>::max();
+            idxbuffer[idx] = -1;
+            for (auto itr = rowList.begin(); itr != rowList.end(); itr++) {
+                if (minz > activeEdgeList[*itr].zl) {
+                    minz = activeEdgeList[*itr].zl;
+                    idxbuffer[idx] = *itr;
+                }
+            }
+        }
+
+        // cout << "fill buffer " << endl;
+        for (idx = 0; idx < static_cast<int>(intervalActiveEdgeList.size()) - 1; idx++) {
+            int left = round(intervalActiveEdgeList[idx].x);
+            int right = round(intervalActiveEdgeList[idx + 1].x);
+            // cout << "left = " << left << endl;
+            // cout << "right = " << right << endl;
+            if (idxbuffer[idx] == -1) {
+                continue;
+            }
+            for (auto i = left; i <= right; i++) {
+                scene.at<float>(y, i) = activePolygonList[idxbuffer[idx]].ill;
+            }
+        }
+
+        cout << "post processing " << endl;
+        // postprocessing
+        auto polItr = activePolygonList.begin();
+        for (auto edgeItr = activeEdgeList.begin(); edgeItr != activeEdgeList.end();) {
+            polItr->dy--;
+            if (polItr->dy < 0) {
+                edgeItr = activeEdgeList.erase(edgeItr);
+                polItr = activePolygonList.erase(polItr);
+                continue;
+            }
+
+            if (edgeItr->left.dy == 0) {
+                FindLeftEdge(*edgeItr, edges);
+            }
+            edgeItr->left.dy--;
+
+            if (edgeItr->right.dy == 0) {
+                FindRightEdge(*edgeItr, edges);
+            }
+            edgeItr->right.dy--;
+            edgeItr->Increment();
+
+            edgeItr++;
+            polItr++;
+        }
+    }
+    imshow("scene", scene);
+}
+/*
+void IntervalScanLineZBuffer::Draw() {
+    scene = Mat(size, CV_32F, Scalar::all(0));
     activeEdgeList.clear();
     activePolygonList.clear();
     for (auto y = 0; y < size.height; y++) {
@@ -220,7 +328,6 @@ void IntervalScanLineZBuffer::Draw() {
         }
 
         // processing
-        // sort(activeEdgeList.begin(), activeEdgeList.end(), CompareEdgePair);
         auto polItr = activePolygonList.begin();
         for (auto edgeItr = activeEdgeList.begin(); edgeItr != activeEdgeList.end();)
         {
@@ -265,6 +372,7 @@ void IntervalScanLineZBuffer::Draw() {
 
     imshow("scene", scene);
 }
+*/
 
 void IntervalScanLineZBuffer::Clear() {
     edgeYList.clear();
@@ -284,4 +392,8 @@ void IntervalScanLineZBuffer::PrintInfo() {
     for (auto y = 0; y < size.height; y++) {
         cout << "y = " << y << endl;
     }
+}
+
+void IntervalScanLineZBuffer::Rotate(Vector3 axis) {
+    camera.block(0, 0, 3, 3) = camera.block(0, 0, 3, 3) * Matrix3(Eigen::AngleAxisf(M_PI/10, axis));
 }

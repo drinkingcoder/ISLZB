@@ -24,6 +24,11 @@ struct EdgePair {
     }
 };
 
+struct IntervalActiveEdge {
+    int idx;
+    real_type x;
+};
+
 struct Plane {
     Vector3 normal;
     real_type d;
@@ -34,6 +39,7 @@ struct Polygon {
     int idx;
     float ill;
     real_type dy;
+    bool flag = false;
 };
 
 class IntervalScanLineZBuffer {
@@ -48,6 +54,7 @@ public:
     void Draw();
     void Clear();
     void PrintInfo();
+    void Rotate(Vector3 axis);
 
 protected:
 public:
@@ -59,6 +66,7 @@ public:
     std::vector<Polygon>   activePolygonList;
     std::vector<EdgePair>   activeEdgeList;
     std::vector<Object>     objects;
+    int idxbuffer[100000];
 
     Matrix3 cameraK;
     Matrix4 camera;
