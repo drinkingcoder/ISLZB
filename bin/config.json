@@ -1,0 +1,5 @@
+{
+    "obj": "bunny.obj",
+    "zBuffer": false,
+    "intervalZBuffer": true
+}
