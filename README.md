@@ -1,8 +1,6 @@
 # Interval Scan Lines
 
-黄昭阳 21721097
-
-[TOC]
+DrinkingCoder
 
 ## Build
 
