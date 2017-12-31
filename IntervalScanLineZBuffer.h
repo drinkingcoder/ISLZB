@@ -52,9 +52,11 @@ public:
     void ProjectObject(const Object & object);
     void ProjectObjects();
     void Draw();
+    void RawScanLineZBufferDraw();
     void Clear();
     void PrintInfo();
     void Rotate(Vector3 axis);
+    void LightRotate(Vector3 axis);
 
 protected:
 public:
@@ -71,4 +73,5 @@ public:
     Matrix3 cameraK;
     Matrix4 camera;
     real_type nearPlane, farPlane;
+    Vector3 light;
 };

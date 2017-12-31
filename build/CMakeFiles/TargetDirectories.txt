@@ -1,3 +1,0 @@
-/Users/drinkingcoder/Documents/university/graduate/Computer Graphics/Project/Code/build/CMakeFiles/rebuild_cache.dir
-/Users/drinkingcoder/Documents/university/graduate/Computer Graphics/Project/Code/build/CMakeFiles/edit_cache.dir
-/Users/drinkingcoder/Documents/university/graduate/Computer Graphics/Project/Code/build/CMakeFiles/main.dir

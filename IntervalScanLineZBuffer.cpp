@@ -59,8 +59,8 @@ inline void ConstructDepthIncrement(EdgePair & edgePair, const Plane & plane, co
         edgePair.zl = -(plane.d + 
                         plane.normal(0) * edgePair.left.x +
                         plane.normal(1) * y) / plane.normal(2);
-        cout << "zl = " << edgePair.zl << endl;
-        cout << "d = " << plane.d << endl;
+        // cout << "zl = " << edgePair.zl << endl;
+        // cout << "d = " << plane.d << endl;
         edgePair.dzx = -(plane.normal(0) / plane.normal(2));
         edgePair.dzy = - plane.normal(1) / plane.normal(2);
     }
@@ -96,6 +96,8 @@ IntervalScanLineZBuffer::IntervalScanLineZBuffer(cv::Size _size):
     camera(0, 3) = 320;
     camera(1, 3) = 240;
     camera(2, 3) = 1000;
+
+    light = Vector3::UnitZ();
 
     activeEdgeList.clear();
     activePolygonList.clear();
@@ -179,7 +181,7 @@ void IntervalScanLineZBuffer::ProjectObject(const Object &object) {
             // cout << "vertex = " << v << endl;
             polygon.plane.normal = normal;
             polygon.plane.d = - normal.dot(v);
-            polygon.ill = abs(Vector3::UnitZ().dot(polygon.plane.normal));
+            polygon.ill = max(0.0f, -light.dot(polygon.plane.normal));
             polygonYList[round(min_y)].push_back(polygon);
         }
     }
@@ -276,7 +278,7 @@ void IntervalScanLineZBuffer::Draw() {
             }
         }
 
-        cout << "post processing " << endl;
+        // cout << "post processing " << endl;
         // postprocessing
         auto polItr = activePolygonList.begin();
         for (auto edgeItr = activeEdgeList.begin(); edgeItr != activeEdgeList.end();) {
@@ -304,22 +306,22 @@ void IntervalScanLineZBuffer::Draw() {
     }
     imshow("scene", scene);
 }
-/*
-void IntervalScanLineZBuffer::Draw() {
+
+void IntervalScanLineZBuffer::RawScanLineZBufferDraw() {
     scene = Mat(size, CV_32F, Scalar::all(0));
     activeEdgeList.clear();
     activePolygonList.clear();
     for (auto y = 0; y < size.height; y++) {
-        cout << "y = " << y << endl;
+        // cout << "y = " << y << endl;
         //preprocessing
         auto zbuffer = Mat(1, size.width, CV_32F, Scalar::all(numeric_limits<float>::max()));
         const auto & polys = polygonYList[y];
         const auto & edges = edgeYList[y];
-        cout << "edges" << endl;
-        for (auto itr = edges.begin(); itr != edges.end(); itr++) {
-            cout << itr->x << " ";
-        }
-        cout << endl;
+        // cout << "edges" << endl;
+        // for (auto itr = edges.begin(); itr != edges.end(); itr++) {
+        //     cout << itr->x << " ";
+        // }
+        // cout << endl;
         for (auto polItr = polys.begin(); polItr != polys.end(); polItr++) {
             activePolygonList.push_back(*polItr);
             auto edgePair = FindEdgePair(polItr->idx, edges);
@@ -372,7 +374,6 @@ void IntervalScanLineZBuffer::Draw() {
 
     imshow("scene", scene);
 }
-*/
 
 void IntervalScanLineZBuffer::Clear() {
     edgeYList.clear();
@@ -396,4 +397,9 @@ void IntervalScanLineZBuffer::PrintInfo() {
 
 void IntervalScanLineZBuffer::Rotate(Vector3 axis) {
     camera.block(0, 0, 3, 3) = camera.block(0, 0, 3, 3) * Matrix3(Eigen::AngleAxisf(M_PI/10, axis));
+}
+
+void IntervalScanLineZBuffer::LightRotate(Vector3 axis) {
+    light += axis * (M_PI/10);
+    light.normalize();
 }

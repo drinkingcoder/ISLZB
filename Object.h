@@ -24,13 +24,13 @@ public:
     Object():pose(Matrix4::Identity()) {
     }
 
-    Object(std::string fileName):pose(Matrix4::Identity()) {
+    Object(const std::string & fileName):pose(Matrix4::Identity()) {
         LoadObject(fileName);
     }
     virtual ~Object() {
     }
 
-    void LoadObject(std::string fileName);
+    void LoadObject(const std::string & fileName);
     void GenerateNormalForFace(Face & f);
     void PrintInfo();
     void Normalize();

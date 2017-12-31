@@ -3,7 +3,7 @@
 
 using namespace std;
 
-void Object::LoadObject(string fileName) {
+void Object::LoadObject(const string & fileName) {
     ifstream fin(fileName);
     if (!fin.is_open()) {
         cout << "Failed to open file: " << fileName << endl;
